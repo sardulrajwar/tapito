@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Tapito Bike Taxi – Fare Calculator</title>
+<style>
+  :root{
+    --tapito-yellow:#FFD700;
+    --tapito-blue:#003399;
+  }
+  body{
+    font-family:'Segoe UI', Tahoma, sans-serif;
+    background:#f8f8f8;
+    margin:0;
+  }
+  header{
+    background:var(--tapito-blue);
+    color:#fff;
+    padding:1rem 2rem;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    box-shadow:0 2px 6px rgba(0,0,0,0.2);
+  }
+  header h1{
+    margin:0;
+    font-size:1.8rem;
+    letter-spacing:1px;
+    color:var(--tapito-yellow);
+  }
+  header nav a{
+    color:#fff;
+    text-decoration:none;
+    margin-left:1.5rem;
+    font-weight:600;
+    transition:color .2s;
+  }
+  header nav a:hover{ color:var(--tapito-yellow); }
+  main{
+    max-width:720px;
+    background:#fff;
+    margin:40px auto;
+    padding:30px;
+    border-radius:12px;
+    box-shadow:0 4px 10px rgba(0,0,0,0.1);
+  }
+  h2{
+    color:var(--tapito-blue);
+    text-align:center;
+    margin-top:0;
+  }
+  .search-container{
+    width:90%;
+    margin:20px auto;
+    position:relative;
+  }
+  #search{
+    width:100%;
+    padding:10px;
+    font-size:1rem;
+    border:1px solid #ccc;
+    border-radius:6px;
+    box-sizing:border-box;
+  }
+  #suggestions{
+    position:absolute;
+    top:100%;
+    left:0;
+    right:0;
+    background:#fff;
+    border:1px solid #ccc;
+    border-top:none;
+    max-height:180px;
+    overflow-y:auto;
+    z-index:1000;
+    display:none;
+  }
+  #suggestions div{
+    padding:8px 10px;
+    cursor:pointer;
+  }
+  #suggestions div:hover{
+    background:var(--tapito-yellow);
+  }
+  .result{
+    margin-top:20px;
+    background:var(--tapito-yellow);
+    color:#000;
+    padding:16px;
+    border-radius:8px;
+    font-size:1.1rem;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Tapito Bike Taxi</h1>
+  <nav>
+    <a href="#">Home</a>
+    <a href="#">Book Ride</a>
+    <a href="#">Contact</a>
+  </nav>
+</header>
+
+<main>
+  <h2>Fare Calculator – Joshiyara Base</h2>
+  <div class="search-container">
+    <input type="text" id="search" placeholder="Type destination…" autocomplete="off">
+    <div id="suggestions"></div>
+  </div>
+  <div class="result" id="out" style="display:none">
+    <p><strong>Destination:</strong> <span id="name"></span></p>
+    <p><strong>Distance:</strong> <span id="dist"></span> km</p>
+    <p><strong>Estimated Time:</strong> <span id="time"></span></p>
+    <p><strong>Fare (₹):</strong> <span id="fare"></span></p>
+  </div>
+</main>
+
+<script>
+// === All locations (duplicates removed) ===
+const locations = [
+  {name:"Joshiyara", km:0, time:"0 mins"},
+  {name:"Tiloth", km:5, time:"10 mins"},
+  {name:"Bus Stand", km:1, time:"3 mins"},
+  {name:"Matli", km:8, time:"15–20 mins"},
+  {name:"Netala", km:10, time:"20 mins"},
+  {name:"Uttarkashi", km:2, time:"5 mins"},
+  {name:"Polytechnic", km:6, time:"12 mins"},
+  {name:"Gyansu", km:3, time:"10 mins"},
+  {name:"Maneri", km:15, time:"30 mins"},
+  {name:"Bhatwadi", km:32, time:"1 – 1.2 hrs"},
+  {name:"Dunda", km:22, time:"40 mins"},
+  {name:"Shakti Temple", km:4, time:"8 mins"},
+  {name:"Barkot", km:90, time:"3 hrs"},
+  {name:"Naugaon", km:35, time:"1 hr"},
+  {name:"Gangnani", km:47, time:"1.5 hrs"},
+  {name:"Sanglai", km:50, time:"1.6 hrs"},
+  {name:"Vishwanath Temple", km:2, time:"5 mins"},
+  {name:"Government Polytechnic", km:6, time:"12 mins"},
+  {name:"Polytechnic College", km:6, time:"12 mins"},
+  {name:"Shakti Nagar", km:12, time:"25 mins"},
+  {name:"Harsil", km:75, time:"2.5 hrs"},
+  {name:"Chungi Bazaar", km:1.5, time:"4 mins"},
+  {name:"Manikarnika Ghat", km:0.5, time:"2 mins"},
+  {name:"Yamunotri Start Point", km:120, time:"5 hrs"},
+  {name:"Chinyalisaur", km:95, time:"3.2 hrs"},
+  {name:"Ganeshpur", km:100, time:"3.5 hrs"},
+  {name:"Gangotri", km:120, time:"5 hrs"},
+  {name:"Sukhi Top", km:58, time:"2 hrs"}
+];
+
+const searchInput = document.getElementById('search');
+const suggestionBox = document.getElementById('suggestions');
+
+function calcFare(km){
+  return km <= 10 ? km*10 : 100 + (km-10)*6;
+}
+
+function showLocation(loc){
+  document.getElementById('name').textContent = loc.name;
+  document.getElementById('dist').textContent = loc.km;
+  document.getElementById('time').textContent = loc.time;
+  document.getElementById('fare').textContent = Math.round(calcFare(loc.km));
+  document.getElementById('out').style.display = 'block';
+}
+
+searchInput.addEventListener('input', () => {
+  const query = searchInput.value.toLowerCase();
+  suggestionBox.innerHTML = '';
+  if(!query){
+    suggestionBox.style.display='none';
+    return;
+  }
+  const matches = locations.filter(l => l.name.toLowerCase().includes(query));
+  matches.forEach(l => {
+    const div = document.createElement('div');
+    div.textContent = l.name;
+    div.onclick = () => {
+      searchInput.value = l.name;
+      suggestionBox.style.display = 'none';
+      showLocation(l);
+    };
+    suggestionBox.appendChild(div);
+  });
+  suggestionBox.style.display = matches.length ? 'block' : 'none';
+});
+</script>
+
+</body>
+</html>
